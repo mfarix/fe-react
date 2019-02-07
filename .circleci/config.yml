@@ -41,10 +41,11 @@ jobs:
       - deploy:
           name: Push application Docker image
           command: |
+            REPOSITORY_URI=${ECR_ENDPOINT}/${ECR_REPOSITORY}
             IMAGE_TAG=$(echo $CIRCLE_SHA1 | cut -c 1-7)
             if [ "${CIRCLE_BRANCH}" == "master" ]; then
               $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
-              docker tag "${ECR_ENDPOINT}/${ECR_REPOSITORY}:latest" "${ECR_ENDPOINT}/${ECR_REPOSITORY}:${IMAGE_TAG}"
-              docker push "${ECR_ENDPOINT}/${ECR_REPOSITORY}:${IMAGE_TAG}"
-              docker push "${ECR_ENDPOINT}/${ECR_REPOSITORY}:latest"
+              docker tag "${REPOSITORY_URI}:latest" "${REPOSITORY_URI}:${IMAGE_TAG}"
+              docker push "${REPOSITORY_URI}:${IMAGE_TAG}"
+              docker push "${REPOSITORY_URI}:latest"
             fi
