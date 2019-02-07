@@ -8,6 +8,9 @@ jobs:
       - checkout
       - setup_remote_docker
       - run: |
+          REPOSITORY_URI=${ECR_ENDPOINT}/${ECR_REPOSITORY}
+          IMAGE_TAG=$(echo $CIRCLE_SHA1 | cut -c 1-7)
+      - run: |
           apk update
           apk add --no-cache py-pip
           pip install docker-compose==1.21.2 awscli==1.16.81
@@ -24,7 +27,7 @@ jobs:
       - run:
           name: Build application Docker image
           command: |
-            docker build --cache-from=app -t ${ECR_ENDPOINT}/${ECR_REPOSITORY} .
+            docker build --cache-from=app -t ${REPOSITORY_URI} .
       - run:
           name: Save Docker image layer cache
           command: |
@@ -41,8 +44,6 @@ jobs:
       - deploy:
           name: Push application Docker image
           command: |
-            REPOSITORY_URI=${ECR_ENDPOINT}/${ECR_REPOSITORY}
-            IMAGE_TAG=$(echo $CIRCLE_SHA1 | cut -c 1-7)
             if [ "${CIRCLE_BRANCH}" == "master" ]; then
               $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
               docker tag "${REPOSITORY_URI}:latest" "${REPOSITORY_URI}:${IMAGE_TAG}"
