@@ -9,7 +9,7 @@ jobs:
       - setup_remote_docker
       - run: |
           apk update
-          apk add --no-cache py-pip==19.0.1
+          apk add --no-cache py-pip==10.0.1-r0
           pip install docker-compose==1.21.2 awscli==1.16.81
       - restore_cache:
           keys:
