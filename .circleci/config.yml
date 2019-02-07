@@ -47,26 +47,3 @@ jobs:
               docker tag app "${ECR_ENDPOINT}/${ECR_REPOSITORY}:${CIRCLE_SHA1}"
               docker push "${ECR_ENDPOINT}/${ECR_REPOSITORY}:${CIRCLE_SHA1}"
             fi
-
-            512200996832.dkr.ecr.ap-southeast-1.amazonaws.com/mfarix/fe-react
-#      # build the application image
-#      - run: docker build -t company/app:$CIRCLE_BRANCH .
-#      # deploy the image
-#      - run: docker push company/app:$CIRCLE_BRANCH
-#    docker:
-#      - image: circleci/<language>:<version TAG>
-#    steps:
-#      - checkout
-#      - run: <command>
-#  test:
-#    docker:
-#      - image: circleci/<language>:<version TAG>
-#    steps:
-#      - checkout
-#      - run: <command>
-#workflows:
-#  version: 2
-#  build_and_test:
-#    jobs:
-#      - build
-#      - test
