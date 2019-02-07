@@ -1,5 +1,15 @@
 version: 2
 jobs:
+#  shellcheck:
+#    docker:
+#      - image: koalaman/shellcheck-alpine:stable
+#    steps:
+#      - checkout
+#      - run:
+#          name: Check Shell Scripts
+#          command: |
+#            find . -type f -name '*.sh' | wc -l
+#            find . -type f -name '*.sh' | xargs shellcheck --external-sources
   build:
     working_directory: /app
     docker:
@@ -48,4 +58,49 @@ jobs:
               docker tag "${REPOSITORY_URI}:latest" "${REPOSITORY_URI}:${IMAGE_TAG}"
               docker push "${REPOSITORY_URI}:${IMAGE_TAG}"
               docker push "${REPOSITORY_URI}:latest"
+
+              # Create task for docker deploy
+              task_template='[
+                {
+                  "name": "%s",
+                  "image": "%s:%s",
+                  "essential": true,
+                  "portMappings": [
+                    {
+                      "containerPort": 3000,
+                      "hostPort": 80
+                    }
+                  ],
+                  "environment" : [
+                      { "name" : "NODE_ENV", "value" : "production" }
+                  ],
+                  "cpu": 256,
+                  "memory": 512
+                }
+              ]'
+              echo "$task_template"
+
+              task_def=$(printf "$task_template" $ECS_TASK_NAME $REPOSITORY_URI $IMAGE_TAG)
+
+              # Register task definition
+              json=$(aws ecs register-task-definition --container-definitions "$task_def" --family "$ECS_TASK_FAMILY")
+
+              # Grab revision # using regular bash and grep
+              revision=$(echo "$json" | grep -o '"revision": [0-9]*' | grep -Eo '[0-9]+')
+
+              # Deploy revision
+              aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" --task-definition "$ECS_TASK_NAME":"$revision"
+              return 0
             fi
+
+#workflows:
+#  version: 2
+#  workflow:
+#    jobs:
+#      - shellcheck
+#      - build-job:
+#          requires:
+#            - shellcheck
+#          filters:
+#            branches:
+#              only: master
