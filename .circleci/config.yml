@@ -1,0 +1,72 @@
+version: 2
+jobs:
+  build:
+    working_directory: /app
+    docker:
+      - image: docker:18.06.1-ce-git
+    machine: true
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: |
+          apk add --no-cache py-pip=9.0.0-r1
+          pip install docker-compose==1.12.0 awscli==1.11.76
+      - restore_cache:
+          keys:
+            - v1-{{ .Branch }}
+          paths:
+            - /caches/app.tar
+      - run:
+          name: Load Docker image layer cache
+          command: |
+            set +o pipefail
+            docker load -i /caches/app.tar | true
+      - run:
+          name: Build application Docker image
+          command: |
+            docker build --cache-from=app -t app .
+      - run:
+          name: Save Docker image layer cache
+          command: |
+            mkdir -p /caches
+            docker save -o /caches/app.tar app
+      - save_cache:
+          key: v1-{{ .Branch }}-{{ epoch }}
+          paths:
+            - /caches/app.tar
+      - run:
+          name: Run tests
+          command: |
+            docker-compose -f ./docker-compose.test.yml up
+      - deploy:
+          name: Push application Docker image
+          command: |
+            if [ "${CIRCLE_BRANCH}" == "master" ]; then
+              login="$(aws ecr get-login)"
+              ${login}
+              docker tag app "${ECR_ENDPOINT}/${ECR_REPOSITORY}:${CIRCLE_SHA1}"
+              docker push "${ECR_ENDPOINT}/${ECR_REPOSITORY}:${CIRCLE_SHA1}"
+            fi
+
+            512200996832.dkr.ecr.ap-southeast-1.amazonaws.com/mfarix/fe-react
+#      # build the application image
+#      - run: docker build -t company/app:$CIRCLE_BRANCH .
+#      # deploy the image
+#      - run: docker push company/app:$CIRCLE_BRANCH
+#    docker:
+#      - image: circleci/<language>:<version TAG>
+#    steps:
+#      - checkout
+#      - run: <command>
+#  test:
+#    docker:
+#      - image: circleci/<language>:<version TAG>
+#    steps:
+#      - checkout
+#      - run: <command>
+#workflows:
+#  version: 2
+#  build_and_test:
+#    jobs:
+#      - build
+#      - test
