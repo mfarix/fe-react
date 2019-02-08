@@ -88,7 +88,7 @@ jobs:
                   ],
                   "memory": 512,
                   "memoryReservation": 450,
-                  "essential": true,
+                  "essential": true
                 }
               ]'
               echo "$task_template"
