@@ -22,7 +22,13 @@ jobs:
       - run:
           name: "Setup custom environment variables"
           command: |
-            echo 'export MY_ENV_VAR="${ECR_ENDPOINT}/${ECR_REPOSITORY}"' >> $BASH_ENV
+            echo 'export MY_ENV_VAR="${ECR_REPOSITORY}"' >> $BASH_ENV
+            echo 'export FULL_IMAGE_NAME="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"' >> $BASH_ENV
+            echo $FULL_IMAGE_NAME
+            echo $MY_ENV_VAR
+            source $BASH_ENV
+            echo test
+            echo $MY_ENV_VAR
       - run: |
           apk update
           apk add --no-cache py-pip==10.0.1-r0
@@ -105,6 +111,8 @@ jobs:
               echo $AWS_DEFAULT_REGION && echo $ECS_CLUSTER && echo $ECS_SERVICE && echo $ECS_TASK_NAME && echo $revision
               echo $POSTGRES_USER
               echo $MY_ENV_VAR
+              echo test2
+              echo $FULL_IMAGE_NAME
 
               # Deploy revision
               aws ecs update-service --region "$AWS_DEFAULT_REGION" --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" --task-definition "$ECS_TASK_NAME":"$revision"
