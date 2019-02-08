@@ -1,15 +1,15 @@
 version: 2
 jobs:
-#  shellcheck:
-#    docker:
-#      - image: koalaman/shellcheck-alpine:stable
-#    steps:
-#      - checkout
-#      - run:
-#          name: Check Shell Scripts
-#          command: |
-#            find . -type f -name '*.sh' | wc -l
-#            find . -type f -name '*.sh' | xargs shellcheck --external-sources
+  shellcheck:
+    docker:
+      - image: koalaman/shellcheck-alpine:stable
+    steps:
+      - checkout
+      - run:
+          name: Check Shell Scripts
+          command: |
+            find . -type f -name '*.sh' | wc -l
+            find . -type f -name '*.sh' | xargs shellcheck --external-sources
   build:
     working_directory: /app
     docker:
@@ -120,14 +120,14 @@ jobs:
               return 0
             fi
 
-#workflows:
-#  version: 2
-#  workflow:
-#    jobs:
-#      - shellcheck
-#      - build-job:
-#          requires:
-#            - shellcheck
-#          filters:
-#            branches:
-#              only: master
+workflows:
+  version: 2
+  workflow:
+    jobs:
+      - shellcheck
+      - build:
+          requires:
+            - shellcheck
+          filters:
+            branches:
+              only: master
