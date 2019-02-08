@@ -22,7 +22,7 @@ jobs:
       - run:
           name: "Setup custom environment variables"
           command: |
-            echo 'export MY_ENV_VAR="${ECR_ENDPOINT}/${ECR_REPOSITORY}" >> $BASH_ENV
+            echo 'export MY_ENV_VAR="${ECR_ENDPOINT}/${ECR_REPOSITORY}"' >> $BASH_ENV
       - run: |
           apk update
           apk add --no-cache py-pip==10.0.1-r0
