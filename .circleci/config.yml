@@ -41,6 +41,7 @@ jobs:
           name: Build application Docker image
           command: |
             source $BASH_ENV
+            echo $REPOSITORY_URI
             docker build --cache-from=app -t ${REPOSITORY_URI} .
       - run:
           name: Save Docker image layer cache
