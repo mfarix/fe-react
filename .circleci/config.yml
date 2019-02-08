@@ -22,13 +22,10 @@ jobs:
       - run:
           name: "Setup custom environment variables"
           command: |
-            echo 'export MY_ENV_VAR="${ECR_REPOSITORY}"' >> $BASH_ENV
-            echo 'export FULL_IMAGE_NAME="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"' >> $BASH_ENV
-            echo $FULL_IMAGE_NAME
-            echo $MY_ENV_VAR
-            source $BASH_ENV
-            echo test
-            echo $MY_ENV_VAR
+            echo 'export REPOSITORY_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/\
+                  ${ECR_REPOSITORY}"' >> $BASH_ENV
+            echo 'export IMAGE_TAG="$(echo $CIRCLE_SHA1 | cut -c 1-7)"' >> $BASH_ENV
+            echo 'export IAM_EXEC_ROLE="arn:aws:iam::${AWS_ACCOUNT_ID}:role/ecsTaskExecutionRole"' >> $BASH_ENV
       - run: |
           apk update
           apk add --no-cache py-pip==10.0.1-r0
@@ -63,8 +60,7 @@ jobs:
       - deploy:
           name: Push application Docker image
           command: |
-            REPOSITORY_URI=${ECR_ENDPOINT}/${ECR_REPOSITORY}
-            IMAGE_TAG=$(echo $CIRCLE_SHA1 | cut -c 1-7)
+            source $BASH_ENV
             if [ "${CIRCLE_BRANCH}" == "master" ]; then
               $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
               docker tag "${REPOSITORY_URI}:latest" "${REPOSITORY_URI}:${IMAGE_TAG}"
@@ -73,37 +69,45 @@ jobs:
 
               # Create task for docker deploy
               task_template='[
-                  {
-                    "name": "%s",
-                    "image": "%s:%s",
-                    "logConfiguration": {
-                      "logDriver": "awslogs",
-                      "options": {
-                        "awslogs-group": "/ecs/fe-react",
-                        "awslogs-region": "ap-southeast-1",
-                        "awslogs-stream-prefix": "ecs"
-                      }
-                    },
-                    "portMappings": [
-                      {
-                        "hostPort": 3000,
-                        "protocol": "tcp",
-                        "containerPort": 3000
-                      }
-                    ],
-                    "cpu": 0,
-                    "environment": [],
-                    "memory": 512,
-                    "memoryReservation": 450,
-                    "essential": true
-                  }
-                ]'
+                {
+                  "name": "%s",
+                  "image": "%s:%s",
+                  "logConfiguration": {
+                    "logDriver": "awslogs",
+                    "options": {
+                      "awslogs-group": "/ecs/%s",
+                      "awslogs-region": "%s",
+                      "awslogs-stream-prefix": "ecs"
+                    }
+                  },
+                  "portMappings": [
+                    {
+                      "hostPort": 80,
+                      "protocol": "tcp",
+                      "containerPort": 3000
+                    }
+                  ],
+                  "cpu": 0,
+                  "environment": [],
+                  "memory": 512,
+                  "memoryReservation": 450,
+                  "essential": true
+                }
+              ]'
               echo "$task_template"
 
-              task_def=$(printf "$task_template" $ECS_TASK_NAME $REPOSITORY_URI $IMAGE_TAG)
+              task_def=$(printf "$task_template" $ECS_TASK_NAME $REPOSITORY_URI $IMAGE_TAG $ECS_TASK_NAME $AWS_DEFAULT_REGION)
 
               # Register task definition
-              json=$(aws ecs register-task-definition --container-definitions "$task_def" --family "$ECS_TASK_FAMILY" --region "$AWS_DEFAULT_REGION" --requires-compatibilities FARGATE --network-mode awsvpc --execution-role-arn arn:aws:iam::512200996832:role/ecsTaskExecutionRole --cpu 256 --memory 512)
+              json=$(aws ecs register-task-definition\
+                        --container-definitions "$task_def"\
+                        --family "$ECS_TASK_FAMILY"\
+                        --region "$AWS_DEFAULT_REGION"\
+                        --execution-role-arn "$IAM_EXEC_ROLE"\
+                        --requires-compatibilities FARGATE\
+                        --network-mode awsvpc\
+                        --cpu 256\
+                        --memory 512)
 
               # Grab revision # using regular bash and grep
               revision=$(echo "$json" | grep -o '"revision": [0-9]*' | grep -Eo '[0-9]+')
@@ -116,7 +120,11 @@ jobs:
               echo $FULL_IMAGE_NAME
 
               # Deploy revision
-              aws ecs update-service --region "$AWS_DEFAULT_REGION" --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" --task-definition "$ECS_TASK_NAME":"$revision"
+              aws ecs update-service\
+                  --region "$AWS_DEFAULT_REGION"\
+                  --cluster "$ECS_CLUSTER"\
+                  --service "$ECS_SERVICE"\
+                  --task-definition "$ECS_TASK_NAME":"$revision"
               return 0
             fi
 
