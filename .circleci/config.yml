@@ -70,8 +70,11 @@ jobs:
                   >> $BASH_ENV
             echo 'export IMAGE_TAG="$(echo $CIRCLE_SHA1 | cut -c 1-7)"' >> $BASH_ENV
             echo 'export IAM_EXEC_ROLE="arn:aws:iam::${AWS_ACCOUNT_ID}:role/ecsTaskExecutionRole"' >> $BASH_ENV
+      - run: |
+          apk update && apk add --no-cache py-pip==10.0.1-r0
+          pip install awscli==1.16.81
       - deploy:
-          name: Push application Docker image
+          name: Deploy docker image to ECS
           command: |
             source $BASH_ENV
             if [ "${CIRCLE_BRANCH}" == "master" ]; then
@@ -144,5 +147,5 @@ workflows:
             - build
       - deploy:
           requires:
-            - build
+            - hold
 
