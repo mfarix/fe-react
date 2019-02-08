@@ -51,8 +51,10 @@ jobs:
       - deploy:
           name: Push application Docker image
           command: |
-            REPOSITORY_URI=${ECR_ENDPOINT}/${ECR_REPOSITORY}
+            REPOSITORY_URI=${$AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPOSITORY}
             IMAGE_TAG=$(echo $CIRCLE_SHA1 | cut -c 1-7)
+            IAM_EXEC_ROLE=arn:aws:iam::${$AWS_ACCOUNT_ID}:role/ecsTaskExecutionRole
+
             if [ "${CIRCLE_BRANCH}" == "master" ]; then
               $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
               docker tag "${REPOSITORY_URI}:latest" "${REPOSITORY_URI}:${IMAGE_TAG}"
@@ -61,42 +63,37 @@ jobs:
 
               # Create task for docker deploy
               task_template='[
-                {
-                  "name": "%s",
-                  "image": "%s:%s",
-                  "logConfiguration": {
-                    "logDriver": "awslogs",
-                    "options": {
-                      "awslogs-group": "/ecs/fe-react",
-                      "awslogs-region": "ap-southeast-1",
-                      "awslogs-stream-prefix": "ecs"
-                    }
-                  },
-                  "portMappings": [
-                    {
-                      "hostPort": 80,
-                      "protocol": "tcp",
-                      "containerPort": 3000
-                    }
-                  ],
-                  "cpu": 256,
-                  "environment": [
-                    {
-                      "name" : "NODE_ENV",
-                      "value" : "production"
-                    }
-                  ],
-                  "memory": 512,
-                  "memoryReservation": 450,
-                  "essential": true
-                }
-              ]'
+                  {
+                    "name": "%s",
+                    "image": "%s:%s",
+                    "logConfiguration": {
+                      "logDriver": "awslogs",
+                      "options": {
+                        "awslogs-group": "/ecs/fe-react",
+                        "awslogs-region": "ap-southeast-1",
+                        "awslogs-stream-prefix": "ecs"
+                      }
+                    },
+                    "portMappings": [
+                      {
+                        "hostPort": 3000,
+                        "protocol": "tcp",
+                        "containerPort": 3000
+                      }
+                    ],
+                    "cpu": 0,
+                    "environment": [],
+                    "memory": 512,
+                    "memoryReservation": 450,
+                    "essential": true
+                  }
+                ]'
               echo "$task_template"
 
               task_def=$(printf "$task_template" $ECS_TASK_NAME $REPOSITORY_URI $IMAGE_TAG)
 
               # Register task definition
-              json=$(aws ecs register-task-definition --container-definitions "$task_def" --family "$ECS_TASK_FAMILY" --region "$AWS_DEFAULT_REGION")
+              json=$(aws ecs register-task-definition --container-definitions "$task_def" --family "$ECS_TASK_FAMILY" --region "$AWS_DEFAULT_REGION" --requires-compatibilities FARGATE --network-mode awsvpc --execution-role-arn "$IAM_EXEC_ROLE" --cpu 256 --memory 512)
 
               # Grab revision # using regular bash and grep
               revision=$(echo "$json" | grep -o '"revision": [0-9]*' | grep -Eo '[0-9]+')
