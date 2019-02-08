@@ -96,7 +96,7 @@ jobs:
               task_def=$(printf "$task_template" $ECS_TASK_NAME $REPOSITORY_URI $IMAGE_TAG)
 
               # Register task definition
-              json=$(aws ecs register-task-definition --container-definitions "$task_def" --family "$ECS_TASK_FAMILY")
+              json=$(aws ecs register-task-definition --container-definitions "$task_def" --family "$ECS_TASK_FAMILY" --region "$AWS_DEFAULT_REGION")
 
               # Grab revision # using regular bash and grep
               revision=$(echo "$json" | grep -o '"revision": [0-9]*' | grep -Eo '[0-9]+')
