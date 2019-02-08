@@ -17,9 +17,6 @@ jobs:
                   >> $BASH_ENV
             echo 'export IMAGE_TAG="$(echo $CIRCLE_SHA1 | cut -c 1-7)"' >> $BASH_ENV
             echo 'export IAM_EXEC_ROLE="arn:aws:iam::${AWS_ACCOUNT_ID}:role/ecsTaskExecutionRole"' >> $BASH_ENV
-      - run: |
-          apk update && apk add --no-cache py-pip==10.0.1-r0
-          pip install docker-compose==1.21.2 awscli==1.16.81
       - restore_cache:
           keys:
             - v1-{{ .Branch }}
@@ -30,6 +27,9 @@ jobs:
           command: |
             set +o pipefail
             docker load -i /caches/app.tar | true
+      - run: |
+          apk update && apk add --no-cache py-pip==10.0.1-r0
+          pip install docker-compose==1.21.2 awscli==1.16.81
       - run:
           name: Build application Docker image
           command: |
@@ -69,9 +69,9 @@ jobs:
           aws-secret-access-key: $AWS_SECRET_ACCESS_KEY
           aws-region: $AWS_DEFAULT_REGION
       - aws-ecs/update-service:
-          family: '${ECS_TASK_FAMILY}'
+          family: '${ECS_SERVICE}'
           cluster-name: '${ECS_CLUSTER}'
-          container-image-name-updates: 'container=${ECS_SERVICE},tag=$(echo $CIRCLE_SHA1 | cut -c 1-7)'
+          container-image-name-updates: 'container=${ECS_CLUSTER},tag=$(echo $CIRCLE_SHA1 | cut -c 1-7)'
 workflows:
   version: 2.1
   build-deploy:
