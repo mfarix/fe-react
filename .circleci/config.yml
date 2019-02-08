@@ -14,9 +14,15 @@ jobs:
     working_directory: /app
     docker:
       - image: docker:18.06.1-ce-git
+        environment:
+          POSTGRES_USER: conductor
     steps:
       - checkout
       - setup_remote_docker
+      - run:
+          name: "Setup custom environment variables"
+          command: |
+            echo 'export MY_ENV_VAR=$REPOSITORY_URI >> $BASH_ENV
       - run: |
           apk update
           apk add --no-cache py-pip==10.0.1-r0
@@ -97,6 +103,8 @@ jobs:
               revision=$(echo "$json" | grep -o '"revision": [0-9]*' | grep -Eo '[0-9]+')
 
               echo $AWS_DEFAULT_REGION && echo $ECS_CLUSTER && echo $ECS_SERVICE && echo $ECS_TASK_NAME && echo $revision
+              echo $POSTGRES_USER
+              echo $MY_ENV_VAR
 
               # Deploy revision
               aws ecs update-service --region "$AWS_DEFAULT_REGION" --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" --task-definition "$ECS_TASK_NAME":"$revision"
