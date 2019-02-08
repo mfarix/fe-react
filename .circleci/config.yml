@@ -72,7 +72,7 @@ jobs:
           cluster-name: '${ECS_CLUSTER}'
           container-image-name-updates: 'container=${ECS_SERVICE},tag=$(echo $CIRCLE_SHA1 | cut -c 1-7)'
 workflows:
-  version: 2
+  version: 2.1
   build-deploy:
     jobs:
       - build:
