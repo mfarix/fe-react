@@ -53,8 +53,6 @@ jobs:
           command: |
             REPOSITORY_URI=${$AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPOSITORY}
             IMAGE_TAG=$(echo $CIRCLE_SHA1 | cut -c 1-7)
-            IAM_EXEC_ROLE=arn:aws:iam::${$AWS_ACCOUNT_ID}:role/ecsTaskExecutionRole
-
             if [ "${CIRCLE_BRANCH}" == "master" ]; then
               $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
               docker tag "${REPOSITORY_URI}:latest" "${REPOSITORY_URI}:${IMAGE_TAG}"
@@ -93,7 +91,7 @@ jobs:
               task_def=$(printf "$task_template" $ECS_TASK_NAME $REPOSITORY_URI $IMAGE_TAG)
 
               # Register task definition
-              json=$(aws ecs register-task-definition --container-definitions "$task_def" --family "$ECS_TASK_FAMILY" --region "$AWS_DEFAULT_REGION" --requires-compatibilities FARGATE --network-mode awsvpc --execution-role-arn "$IAM_EXEC_ROLE" --cpu 256 --memory 512)
+              json=$(aws ecs register-task-definition --container-definitions "$task_def" --family "$ECS_TASK_FAMILY" --region "$AWS_DEFAULT_REGION" --requires-compatibilities FARGATE --network-mode awsvpc --execution-role-arn arn:aws:iam::512200996832:role/ecsTaskExecutionRole --cpu 256 --memory 512)
 
               # Grab revision # using regular bash and grep
               revision=$(echo "$json" | grep -o '"revision": [0-9]*' | grep -Eo '[0-9]+')
