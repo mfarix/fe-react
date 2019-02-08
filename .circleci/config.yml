@@ -108,6 +108,7 @@ jobs:
               # Grab revision # using regular bash and grep
               revision=$(echo "$json" | grep -o '"revision": [0-9]*' | grep -Eo '[0-9]+')
 
+              source $BASH_ENV
               echo $AWS_DEFAULT_REGION && echo $ECS_CLUSTER && echo $ECS_SERVICE && echo $ECS_TASK_NAME && echo $revision
               echo $POSTGRES_USER
               echo $MY_ENV_VAR
