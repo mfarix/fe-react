@@ -1,4 +1,6 @@
-version: 2
+version: 2.1
+orbs:
+  aws-ecs: circleci/aws-ecs@0.0.5
 jobs:
   build:
     working_directory: /app
@@ -57,82 +59,18 @@ jobs:
               docker push "${REPOSITORY_URI}:latest"
             fi
   deploy:
-    working_directory: /app
     docker:
-      - image: docker:18.06.1-ce-git
+      - image: 'circleci/python:3.7.1'
     steps:
-      - checkout
-      - setup_remote_docker
-      - run:
-          name: "Setup custom environment variables"
-          command: |
-            echo 'export REPOSITORY_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPOSITORY}"'\
-                  >> $BASH_ENV
-            echo 'export IMAGE_TAG="$(echo $CIRCLE_SHA1 | cut -c 1-7)"' >> $BASH_ENV
-            echo 'export IAM_EXEC_ROLE="arn:aws:iam::${AWS_ACCOUNT_ID}:role/ecsTaskExecutionRole"' >> $BASH_ENV
-      - run: |
-          apk update && apk add --no-cache py-pip==10.0.1-r0
-          pip install awscli==1.16.81
-      - deploy:
-          name: Deploy docker image to ECS
-          command: |
-            source $BASH_ENV
-            if [ "${CIRCLE_BRANCH}" == "master" ]; then
-              $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
-
-              # Create task for docker deploy
-              task_template='[
-                {
-                  "name": "%s",
-                  "image": "%s:%s",
-                  "logConfiguration": {
-                    "logDriver": "awslogs",
-                    "options": {
-                      "awslogs-group": "/ecs/%s",
-                      "awslogs-region": "%s",
-                      "awslogs-stream-prefix": "ecs"
-                    }
-                  },
-                  "portMappings": [
-                    {
-                      "hostPort": 3000,
-                      "protocol": "tcp",
-                      "containerPort": 3000
-                    }
-                  ],
-                  "cpu": 0,
-                  "environment": [],
-                  "memory": 512,
-                  "memoryReservation": 450,
-                  "essential": true
-                }
-              ]'
-              echo "$task_template"
-
-              task_def=$(printf "$task_template" $ECS_TASK_NAME $REPOSITORY_URI $IMAGE_TAG $ECS_TASK_NAME $AWS_DEFAULT_REGION)
-
-              # Register task definition
-              json=$(aws ecs register-task-definition\
-                        --container-definitions "$task_def"\
-                        --family "$ECS_TASK_FAMILY"\
-                        --region "$AWS_DEFAULT_REGION"\
-                        --execution-role-arn "$IAM_EXEC_ROLE"\
-                        --requires-compatibilities FARGATE\
-                        --network-mode awsvpc\
-                        --cpu 256\
-                        --memory 512)
-
-              # Grab revision number
-              revision=$(echo "$json" | grep -o '"revision": [0-9]*' | grep -Eo '[0-9]+')
-
-              # Deploy revision
-              aws ecs update-service\
-                  --region "$AWS_DEFAULT_REGION"\
-                  --cluster "$ECS_CLUSTER"\
-                  --service "$ECS_SERVICE"\
-                  --task-definition "$ECS_TASK_NAME":"$revision"
-              return 0
-            fi
+      - aws-cli/install
+      - aws-cli/configure:
+          aws-access-key-id: $AWS_ACCESS_KEY_ID
+          aws-secret-access-key: $AWS_SECRET_ACCESS_KEY
+          aws-region: $AWS_DEFAULT_REGION
+      - aws-ecs/update-service:
+          family: '${ECS_TASK_FAMILY}'
+          cluster-name: '${ECS_CLUSTER}'
+          container-image-name-updates: 'container=${ECS_SERVICE},tag=$(echo $CIRCLE_SHA1 | cut -c 1-7)'
 workflows:
   version: 2
   build-deploy:
