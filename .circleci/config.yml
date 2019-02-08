@@ -65,7 +65,7 @@ jobs:
                   "name": "%s",
                   "image": "%s:%s",
                   "logConfiguration": {
-                    "logDriver": "awslog
+                    "logDriver": "awslogs",
                     "options": {
                       "awslogs-group": "/ecs/fe-react",
                       "awslogs-region": "ap-southeast-1",
