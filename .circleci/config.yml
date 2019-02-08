@@ -14,8 +14,6 @@ jobs:
     working_directory: /app
     docker:
       - image: docker:18.06.1-ce-git
-        environment:
-          POSTGRES_USER: conductor
     steps:
       - checkout
       - setup_remote_docker
@@ -27,8 +25,7 @@ jobs:
             echo 'export IMAGE_TAG="$(echo $CIRCLE_SHA1 | cut -c 1-7)"' >> $BASH_ENV
             echo 'export IAM_EXEC_ROLE="arn:aws:iam::${AWS_ACCOUNT_ID}:role/ecsTaskExecutionRole"' >> $BASH_ENV
       - run: |
-          apk update
-          apk add --no-cache py-pip==10.0.1-r0
+          apk update && apk add --no-cache py-pip==10.0.1-r0
           pip install docker-compose==1.21.2 awscli==1.16.81
       - restore_cache:
           keys:
@@ -43,7 +40,8 @@ jobs:
       - run:
           name: Build application Docker image
           command: |
-            docker build --cache-from=app -t ${ECR_ENDPOINT}/${ECR_REPOSITORY} .
+            source $BASH_ENV
+            docker build --cache-from=app -t ${REPOSITORY_URI} .
       - run:
           name: Save Docker image layer cache
           command: |
@@ -53,10 +51,10 @@ jobs:
           key: v1-{{ .Branch }}-{{ epoch }}
           paths:
             - /caches/app.tar
-#      - run:
-#          name: Run tests
-#          command: |
-#            docker-compose -f ./docker-compose.test.yml up
+      - run:
+          name: Run tests
+          command: |
+            docker-compose -f ./docker-compose.test.yml up
       - deploy:
           name: Push application Docker image
           command: |
@@ -109,15 +107,8 @@ jobs:
                         --cpu 256\
                         --memory 512)
 
-              # Grab revision # using regular bash and grep
+              # Grab revision number
               revision=$(echo "$json" | grep -o '"revision": [0-9]*' | grep -Eo '[0-9]+')
-
-              source $BASH_ENV
-              echo $AWS_DEFAULT_REGION && echo $ECS_CLUSTER && echo $ECS_SERVICE && echo $ECS_TASK_NAME && echo $revision
-              echo $POSTGRES_USER
-              echo $MY_ENV_VAR
-              echo test2
-              echo $FULL_IMAGE_NAME
 
               # Deploy revision
               aws ecs update-service\
