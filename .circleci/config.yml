@@ -96,6 +96,8 @@ jobs:
               # Grab revision # using regular bash and grep
               revision=$(echo "$json" | grep -o '"revision": [0-9]*' | grep -Eo '[0-9]+')
 
+              echo $AWS_DEFAULT_REGION && echo $ECS_CLUSTER && echo $ECS_SERVICE && echo $ECS_TASK_NAME && echo $revision
+
               # Deploy revision
               aws ecs update-service --region "$AWS_DEFAULT_REGION" --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" --task-definition "$ECS_TASK_NAME":"$revision"
               return 0
