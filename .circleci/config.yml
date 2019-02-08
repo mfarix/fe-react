@@ -1,15 +1,5 @@
 version: 2
 jobs:
-  shellcheck:
-    docker:
-      - image: koalaman/shellcheck-alpine:stable
-    steps:
-      - checkout
-      - run:
-          name: Check Shell Scripts
-          command: |
-            find . -type f -name '*.sh' | wc -l
-            find . -type f -name '*.sh' | xargs shellcheck --external-sources
   build:
     working_directory: /app
     docker:
@@ -65,6 +55,27 @@ jobs:
               docker tag "${REPOSITORY_URI}:latest" "${REPOSITORY_URI}:${IMAGE_TAG}"
               docker push "${REPOSITORY_URI}:${IMAGE_TAG}"
               docker push "${REPOSITORY_URI}:latest"
+            fi
+  deploy:
+    working_directory: /app
+    docker:
+      - image: docker:18.06.1-ce-git
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: "Setup custom environment variables"
+          command: |
+            echo 'export REPOSITORY_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPOSITORY}"'\
+                  >> $BASH_ENV
+            echo 'export IMAGE_TAG="$(echo $CIRCLE_SHA1 | cut -c 1-7)"' >> $BASH_ENV
+            echo 'export IAM_EXEC_ROLE="arn:aws:iam::${AWS_ACCOUNT_ID}:role/ecsTaskExecutionRole"' >> $BASH_ENV
+      - deploy:
+          name: Push application Docker image
+          command: |
+            source $BASH_ENV
+            if [ "${CIRCLE_BRANCH}" == "master" ]; then
+              $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
 
               # Create task for docker deploy
               task_template='[
@@ -119,15 +130,19 @@ jobs:
                   --task-definition "$ECS_TASK_NAME":"$revision"
               return 0
             fi
-
 workflows:
   version: 2
-  workflow:
+  build-deploy:
     jobs:
-      - shellcheck
       - build:
-          requires:
-            - shellcheck
           filters:
             branches:
               only: master
+      - hold: # <<< A job that will require manual approval in the CircleCI web application.
+          type: approval # <<< This key-value pair will set your workflow to a status of "On Hold"
+          requires: # We only run the "hold" job when build has succeeded
+            - build
+      - deploy:
+          requires:
+            - build
+
