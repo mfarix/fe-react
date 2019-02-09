@@ -69,9 +69,10 @@ jobs:
           aws-secret-access-key: $AWS_SECRET_ACCESS_KEY
           aws-region: $AWS_DEFAULT_REGION
       - aws-ecs/update-service:
-          family: '${ECS_SERVICE}'
+          family: '${ECS_TASK_FAMILY}'
           cluster-name: '${ECS_CLUSTER}'
-          container-image-name-updates: 'container=${ECS_CLUSTER},tag=$(echo $CIRCLE_SHA1 | cut -c 1-7)'
+          service-name: '${ECS_SERVICE}'
+          container-image-name-updates: 'container=${ECS_TASK_NAME},tag=$(echo $CIRCLE_SHA1 | cut -c 1-7)'
 workflows:
   version: 2.1
   build-deploy:
